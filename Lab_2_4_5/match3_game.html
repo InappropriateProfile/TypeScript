@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match-3 Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            height: fit-content;
+        }
+        
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 15px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .game-board {
+            width: 600px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(30, 1fr);
+            grid-template-rows: repeat(30, 1fr);
+            gap: 1px;
+            position: relative;
+        }
+        
+        .tile {
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            font-weight: bold;
+            position: relative;
+        }
+        
+        .tile:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        
+        .tile.selected {
+            box-shadow: 0 0 10px #fff;
+            transform: scale(1.2);
+        }
+        
+        .tile.locked {
+            border: 2px solid #333;
+            opacity: 0.7;
+        }
+        
+        .tile.locked::after {
+            content: "🔒";
+            position: absolute;
+            font-size: 6px;
+        }
+        
+        .type-0 { background: #ff6b6b; }
+        .type-1 { background: #4ecdc4; }
+        .type-2 { background: #45b7d1; }
+        .type-3 { background: #96ceb4; }
+        .type-4 { background: #feca57; }
+        .type-5 { background: #ff9ff3; }
+        
+        .bomb {
+            background: #2c2c2c !important;
+            color: #ff6b6b;
+        }
+        
+        .bomb::after {
+            content: "💣";
+            font-size: 8px;
+        }
+        
+        .lightning {
+            background: #ffd700 !important;
+            color: #333;
+        }
+        
+        .lightning::after {
+            content: "⚡";
+            font-size: 8px;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn.active {
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        .mode-selection {
+            margin-bottom: 20px;
+        }
+        
+        .high-scores {
+            margin-top: 20px;
+        }
+        
+        .high-score-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .timer {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .timer.warning {
+            color: #ff6b6b;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .bonus-info {
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .bonus-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+            }
+            .game-board {
+                width: 90vw;
+                height: 90vw;
+                max-width: 600px;
+                max-height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>🎮 Управління</h2>
+            
+            <div class="mode-selection">
+                <h3>Режим гри:</h3>
+                <button class="btn mode-btn active" data-mode="simple">Простий</button>
+                <button class="btn mode-btn" data-mode="timed">На час</button>
+                <button class="btn mode-btn" data-mode="challenge">Ускладнений</button>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" id="newGameBtn">Нова гра</button>
+                <button class="btn" id="hintBtn">Підказка</button>
+                <button class="btn" id="shuffleBtn">Перемішати</button>
+            </div>
+            
+            <div class="timer" id="timer" style="display: none;">01:00</div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div>Очки</div>
+                    <div class="stat-value" id="score">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>Ходи</div>
+                    <div class="stat-value" id="moves">0</div>
+                </div>
+            </div>
+            
+            <div class="bonus-info">
+                <h3>💥 Бонуси:</h3>
+                <div class="bonus-item">
+                    <strong>💣 Бомба:</strong> 5 в ряд → квадрат 3x3
+                </div>
+                <div class="bonus-item">
+                    <strong>⚡ Блискавка:</strong> знищує 10 тайлів
+                </div>
+            </div>
+            
+            <div class="high-scores">
+                <h3>🏆 Рекорди</h3>
+                <div id="highScores"></div>
+            </div>
+        </div>
+        
+        <div class="game-container">
+            <h1 class="title">🎯 Три в ряд</h1>
+            <div class="game-board" id="gameBoard"></div>
+        </div>
+    </div>
+
+    <script>
+        // Типи тайлів та бонусів
+        const TILE_TYPES = 6;
+        const BOARD_SIZE = 30;
+        const BONUS_BOMB = 10;
+        const BONUS_LIGHTNING = 11;
+        
+        // Режими гри
+        const GAME_MODES = {
+            SIMPLE: 'simple',
+            TIMED: 'timed',
+            CHALLENGE: 'challenge'
+        };
+
+        class Match3Game {
+            constructor() {
+                this.board = [];
+                this.selectedTile = null;
+                this.score = 0;
+                this.moves = 0;
+                this.gameMode = GAME_MODES.SIMPLE;
+                this.timeLeft = 60;
+                this.timer = null;
+                this.gameEnded = false;
+                this.lockedTiles = new Set();
+                
+                this.initializeEventListeners();
+                this.loadHighScores();
+                this.newGame();
+            }
+            
+            initializeEventListeners() {
+                document.getElementById('newGameBtn').addEventListener('click', () => this.newGame());
+                document.getElementById('hintBtn').addEventListener('click', () => this.showHint());
+                document.getElementById('shuffleBtn').addEventListener('click', () => this.shuffleBoard());
+                
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.gameMode = e.target.dataset.mode;
+                        this.newGame();
+                    });
+                });
+            }
+            
+            newGame() {
+                this.board = [];
+                this.selectedTile = null;
+                this.score = 0;
+                this.moves = 0;
+                this.gameEnded = false;
+                this.lockedTiles.clear();
+                
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+                
+                this.updateStats();
+                this.setupGameMode();
+                this.generateBoard();
+                this.renderBoard();
+            }
+            
+            setupGameMode() {
+                const timerEl = document.getElementById('timer');
+                
+                switch (this.gameMode) {
+                    case GAME_MODES.TIMED:
+                        this.timeLeft = 60;
+                        timerEl.style.display = 'block';
+                        this.startTimer();
+                        break;
+                    case GAME_MODES.CHALLENGE:
+                        timerEl.style.display = 'none';
+                        this.generateLockedTiles();
+                        break;
+                    default:
+                        timerEl.style.display = 'none';
+                }
+            }
+            
+            generateLockedTiles() {
+                // Генеруємо 20-30 заблокованих тайлів випадково
+                const lockedCount = 20 + Math.floor(Math.random() * 11);
+                for (let i = 0; i < lockedCount; i++) {
+                    const row = Math.floor(Math.random() * BOARD_SIZE);
+                    const col = Math.floor(Math.random() * BOARD_SIZE);
+                    this.lockedTiles.add(`${row}-${col}`);
+                }
+            }
+            
+            startTimer() {
+                this.timer = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateTimer();
+                    
+                    if (this.timeLeft <= 0) {
+                        this.endGame('Час вийшов!');
+                    }
+                }, 1000);
+            }
+            
+            updateTimer() {
+                const minutes = Math.floor(this.timeLeft / 60);
+                const seconds = this.timeLeft % 60;
+                const timerEl = document.getElementById('timer');
+                timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (this.timeLeft <= 10) {
+                    timerEl.classList.add('warning');
+                } else {
+                    timerEl.classList.remove('warning');
+                }
+            }
+            
+            generateBoard() {
+                // Генеруємо дошку, поки не будуть можливі ходи
+                let attempts = 0;
+                do {
+                    this.board = [];
+                    for (let row = 0; row < BOARD_SIZE; row++) {
+                        this.board[row] = [];
+                        for (let col = 0; col < BOARD_SIZE; col++) {
+                            this.board[row][col] = Math.floor(Math.random() * TILE_TYPES);
+                        }
+                    }
+                    attempts++;
+                } while (!this.hasPossibleMoves() && attempts < 100);
+                
+                if (attempts >= 100) {
+                    console.warn('Не вдалося згенерувати дошку з можливими ходами');
+                }
+            }
+            
+            renderBoard() {
+                const boardEl = document.getElementById('gameBoard');
+                boardEl.innerHTML = '';
+                
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    for (let col = 0; col < BOARD_SIZE; col++) {
+                        const tile = document.createElement('div');
+                        tile.className = 'tile';
+                        tile.dataset.row = row;
+                        tile.dataset.col = col;
+                        
+                        const tileType = this.board[row][col];
+                        
+                        if (tileType === BONUS_BOMB) {
+                            tile.classList.add('bomb');
+                        } else if (tileType === BONUS_LIGHTNING) {
+                            tile.classList.add('lightning');
+                        } else {
+                            tile.classList.add(`type-${tileType}`);
+                        }
+                        
+                        if (this.lockedTiles.has(`${row}-${col}`)) {
+                            tile.classList.add('locked');
+                        }
+                        
+                        tile.addEventListener('click', () => this.handleTileClick(row, col));
+                        boardEl.appendChild(tile);
+                    }
+                }
+            }
+            
+            handleTileClick(row, col) {
+                if (this.gameEnded) return;
+                
+                const tile = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                
+                if (this.selectedTile === null) {
+                    this.selectedTile = { row, col };
+                    tile.classList.add('selected');
+                } else {
+                    const prevTile = document.querySelector(`[data-row="${this.selectedTile.row}"][data-col="${this.selectedTile.col}"]`);
+                    prevTile.classList.remove('selected');
+                    
+                    if (this.selectedTile.row === row && this.selectedTile.col === col) {
+                        this.selectedTile = null;
+                        return;
+                    }
+                    
+                    if (this.areAdjacent(this.selectedTile.row, this.selectedTile.col, row, col)) {
+                        this.swapTiles(this.selectedTile.row, this.selectedTile.col, row, col);
+                    }
+                    
+                    this.selectedTile = null;
+                }
+            }
+            
+            areAdjacent(row1, col1, row2, col2) {
+                const rowDiff = Math.abs(row1 - row2);
+                const colDiff = Math.abs(col1 - col2);
+                return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+            }
+            
+            swapTiles(row1, col1, row2, col2) {
+                // Перевіряємо, чи не заблоковані тайли
+                if (this.lockedTiles.has(`${row1}-${col1}`) || this.lockedTiles.has(`${row2}-${col2}`)) {
+                    return;
+                }
+                
+                const temp = this.board[row1][col1];
+                this.board[row1][col1] = this.board[row2][col2];
+                this.board[row2][col2] = temp;
+                
+                const matches = this.findMatches();
+                if (matches.length > 0) {
+                    this.moves++;
+                    this.processMatches();
+                    this.updateStats();
+                } else {
+                    // Повертаємо назад, якщо немає збігів
+                    this.board[row2][col2] = this.board[row1][col1];
+                    this.board[row1][col1] = temp;
+                }
+                
+                this.renderBoard();
+            }
+            
+            findMatches() {
+                const matches = [];
+                const visited = new Set();
+                
+                // Горизонтальні збіги
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    let count = 1;
+                    let currentType = this.board[row][0];
+                    
+                    for (let col = 1; col < BOARD_SIZE; col++) {
+                        if (this.board[row][col] === currentType && currentType < TILE_TYPES) {
+                            count++;
+                        } else {
+                            if (count >= 3) {
+                                const match = [];
+                                for (let i = col - count; i < col; i++) {
+                                    match.push({ row, col: i });
+                                    visited.add(`${row}-${i}`);
+                                }
+                                matches.push({ tiles: match, type: currentType, count });
+                            }
+                            count = 1;
+                            currentType = this.board[row][col];
+                        }
+                    }
+                    
+                    if (count >= 3) {
+                        const match = [];
+                        for (let i = BOARD_SIZE - count; i < BOARD_SIZE; i++) {
+                            match.push({ row, col: i });
+                            visited.add(`${row}-${i}`);
+                        }
+                        matches.push({ tiles: match, type: currentType, count });
+                    }
+                }
+                
+                // Вертикальні збіги
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    let count = 1;
+                    let currentType = this.board[0][col];
+                    
+                    for (let row = 1; row < BOARD_SIZE; row++) {
+                        if (this.board[row][col] === currentType && currentType < TILE_TYPES) {
+                            count++;
+                        } else {
+                            if (count >= 3) {
+                                const match = [];
+                                for (let i = row - count; i < row; i++) {
+                                    if (!visited.has(`${i}-${col}`)) {
+                                        match.push({ row: i, col });
+                                    }
+                                }
+                                if (match.length >= 3) {
+                                    matches.push({ tiles: match, type: currentType, count });
+                                }
+                            }
+                            count = 1;
+                            currentType = this.board[row][col];
+                        }
+                    }
+                    
+                    if (count >= 3) {
+                        const match = [];
+                        for (let i = BOARD_SIZE - count; i < BOARD_SIZE; i++) {
+                            if (!visited.has(`${i}-${col}`)) {
+                                match.push({ row: i, col });
+                            }
+                        }
+                        if (match.length >= 3) {
+                            matches.push({ tiles: match, type: currentType, count });
+                        }
+                    }
+                }
+                
+                // Квадрати 2x2
+                for (let row = 0; row < BOARD_SIZE - 1; row++) {
+                    for (let col = 0; col < BOARD_SIZE - 1; col++) {
+                        const type = this.board[row][col];
+                        if (type < TILE_TYPES &&
+                            this.board[row][col + 1] === type &&
+                            this.board[row + 1][col] === type &&
+                            this.board[row + 1][col + 1] === type) {
+                            
+                            const match = [
+                                { row, col },
+                                { row, col: col + 1 },
+                                { row: row + 1, col },
+                                { row: row + 1, col: col + 1 }
+                            ];
+                            matches.push({ tiles: match, type, count: 4, isSquare: true });
+                        }
+                    }
+                }
+                
+                return matches;
+            }
+            
+            processMatches() {
+                const matches = this.findMatches();
+                if (matches.length === 0) {
+                    if (!this.hasPossibleMoves()) {
+                        this.endGame('Немає можливих ходів!');
+                    }
+                    return;
+                }
+                
+                let totalScore = 0;
+                
+                matches.forEach(match => {
+                    // Розблоковуємо заблоковані тайли, якщо вони в збігу
+                    match.tiles.forEach(tile => {
+                        const key = `${tile.row}-${tile.col}`;
+                        if (this.lockedTiles.has(key)) {
+                            this.lockedTiles.delete(key);
+                        }
+                    });
+                    
+                    // Обчислюємо очки
+                    let points = match.count * 10;
+                    if (match.isSquare) points *= 2;
+                    if (match.count >= 5) points *= 3;
+                    
+                    totalScore += points;
+                    
+                    // Створюємо бонуси
+                    if (match.count >= 5) {
+                        const centerTile = match.tiles[Math.floor(match.tiles.length / 2)];
+                        this.board[centerTile.row][centerTile.col] = BONUS_BOMB;
+                        
+                        // Видаляємо інші тайли збігу
+                        match.tiles.forEach(tile => {
+                            if (tile.row !== centerTile.row || tile.col !== centerTile.col) {
+                                this.board[tile.row][tile.col] = Math.floor(Math.random() * TILE_TYPES);
+                            }
+                        });
+                    } else {
+                        // Видаляємо всі тайли збігу
+                        match.tiles.forEach(tile => {
+                            this.board[tile.row][tile.col] = Math.floor(Math.random() * TILE_TYPES);
+                        });
+                    }
+                    
+                    // Випадково створюємо блискавку
+                    if (Math.random() < 0.1) {
+                        const randomTile = match.tiles[Math.floor(Math.random() * match.tiles.length)];
+                        this.board[randomTile.row][randomTile.col] = BONUS_LIGHTNING;
+                    }
+                });
+                
+                this.score += totalScore;
+                
+                // Перевіряємо умови перемоги в ускладненому режимі
+                if (this.gameMode === GAME_MODES.CHALLENGE && this.lockedTiles.size === 0) {
+                    this.endGame('Ви перемогли! Всі тайли розблоковано!', true);
+                    return;
+                }
+                
+                // Продовжуємо обробку збігів
+                setTimeout(() => {
+                    this.renderBoard();
+                    this.processMatches();
+                }, 300);
+            }
+            
+            useBomb(row, col) {
+                // Вибухає в квадраті 3x3
+                for (let r = Math.max(0, row - 1); r <= Math.min(BOARD_SIZE - 1, row + 1); r++) {
+                    for (let c = Math.max(0, col - 1); c <= Math.min(BOARD_SIZE - 1, col + 1); c++) {
+                        const key = `${r}-${c}`;
+                        if (this.lockedTiles.has(key)) {
+                            this.lockedTiles.delete(key);
+                        }
+                        this.board[r][c] = Math.floor(Math.random() * TILE_TYPES);
+                    }
+                }
+                
+                this.score += 100;
+                this.renderBoard();
+            }
+            
+            useLightning() {
+                // Знищує 10 випадкових тайлів
+                const tilesToDestroy = [];
+                while (tilesToDestroy.length < 10) {
+                    const row = Math.floor(Math.random() * BOARD_SIZE);
+                    const col = Math.floor(Math.random() * BOARD_SIZE);
+                    const key = `${row}-${col}`;
+                    
+                    if (!tilesToDestroy.some(t => t.row === row && t.col === col)) {
+                        tilesToDestroy.push({ row, col });
+                        
+                        if (this.lockedTiles.has(key)) {
+                            this.lockedTiles.delete(key);
+                        }
+                    }
+                }
+                
+                tilesToDestroy.forEach(tile => {
+                    this.board[tile.row][tile.col] = Math.floor(Math.random() * TILE_TYPES);
+                });
+                
+                this.score += 150;
+                this.renderBoard();
+            }
+            
+            hasPossibleMoves() {
+                // Перевіряємо всі можливі обміни
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    for (let col = 0; col < BOARD_SIZE; col++) {
+                        if (this.lockedTiles.has(`${row}-${col}`)) continue;
+                        
+                        // Перевіряємо сусідні тайли
+                        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                        for (const [dr, dc] of directions) {
+                            const newRow = row + dr;
+                            const newCol = col + dc;
+                            
+                            if (newRow >= 0 && newRow < BOARD_SIZE && 
+                                newCol >= 0 && newCol < BOARD_SIZE &&
+                                !this.lockedTiles.has(`${newRow}-${newCol}`)) {
+                                
+                                // Пробуємо обмін
+                                const temp = this.board[row][col];
+                                this.board[row][col] = this.board[newRow][newCol];
+                                this.board[newRow][newCol] = temp;
+                                
+                                if (this.findMatches().length > 0) {
+                                    // Повертаємо назад
+                                    this.board[newRow][newCol] = this.board[row][col];
+                                    this.board[row][col] = temp;
+                                    return true;
+                                }
+                                
+                                // Повертаємо назад
+                                this.board[newRow][newCol] = this.board[row][col];
+                                this.board[row][col] = temp;
+                            }
+                        }
+                    }
+                }
+                
+                return false;
+            }
+            
+            showHint() {
+                // Знаходимо перший можливий хід
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    for (let col = 0; col < BOARD_SIZE; col++) {
+                        if (this.lockedTiles.has(`${row}-${col}`)) continue;
+                        
+                        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                        for (const [dr, dc] of directions) {
+                            const newRow = row + dr;
+                            const newCol = col + dc;
+                            
+                            if (newRow >= 0 && newRow < BOARD_SIZE && 
+                                newCol >= 0 && newCol < BOARD_SIZE &&
+                                !this.lockedTiles.has(`${newRow}-${newCol}`)) {
+                                
+                                const temp = this.board[row][col];
+                                this.board[row][col] = this.board[newRow][newCol];
+                                this.board[newRow][newCol] = temp;
+                                
+                                if (this.findMatches().length > 0) {
+                                    this.board[newRow][newCol] = this.board[row][col];
+                                    this.board[row][col] = temp;
+                                    
+                                    // Підсвічуємо тайли
+                                    const tile1 = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                                    const tile2 = document.querySelector(`[data-row="${newRow}"][data-col="${newCol}"]`);
+                                    
+                                    tile1.style.boxShadow = '0 0 20px #ffff00';
+                                    tile2.style.boxShadow = '0 0 20px #ffff00';
+                                    
+                                    setTimeout(() => {
+                                        tile1.style.boxShadow = '';
+                                        tile2.style.boxShadow = '';
+                                    }, 2000);
+                                    
+                                    return;
+                                }
+                                
+                                this.board[newRow][newCol] = this.board[row][col];
+                                this.board[row][col] = temp;
+                            }
+                        }
+                    }
+                }
+                
+                this.showMessage('Підказок немає!');
+            }
+            
+            shuffleBoard() {
+                // Перемішуємо тільки незаблоковані тайли
+                const unlockedTiles = [];
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    for (let col = 0; col < BOARD_SIZE; col++) {
+                        if (!this.lockedTiles.has(`${row}-${col}`) && this.board[row][col] < TILE_TYPES) {
+                            unlockedTiles.push(this.board[row][col]);
+                        }
+                    }
+                }
+                
+                // Перемішуємо масив
+                for (let i = unlockedTiles.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [unlockedTiles[i], unlockedTiles[j]] = [unlockedTiles[j], unlockedTiles[i]];
+                }
+                
+                // Розставляємо назад
+                let index = 0;
+                for (let row = 0; row < BOARD_SIZE; row++) {
+                    for (let col = 0; col < BOARD_SIZE; col++) {
+                        if (!this.lockedTiles.has(`${row}-${col}`) && this.board[row][col] < TILE_TYPES) {
+                            this.board[row][col] = unlockedTiles[index++];
+                        }
+                    }
+                }
+                
+                this.renderBoard();
+            }
+            
+            endGame(message, isWin = false) {
+                this.gameEnded = true;
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+                
+                this.saveHighScore();
+                
+                const restartBtn = `<button class="btn" onclick="game.newGame(); document.querySelector('.message').remove();">Нова гра</button>`;
+                this.showMessage(`${message}<br><br>Ваш результат: ${this.score} очок<br>${restartBtn}`);
+            }
+            
+            showMessage(text) {
+                const existingMessage = document.querySelector('.message');
+                if (existingMessage) {
+                    existingMessage.remove();
+                }
+                
+                const messageEl = document.createElement('div');
+                messageEl.className = 'message';
+                messageEl.innerHTML = text;
+                document.body.appendChild(messageEl);
+                
+                setTimeout(() => {
+                    if (messageEl.parentNode) {
+                        messageEl.remove();
+                    }
+                }, 3000);
+            }
+            
+            updateStats() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('moves').textContent = this.moves;
+            }
+            
+            saveHighScore() {
+                const scores = this.getHighScores();
+                const modeKey = `${this.gameMode}HighScore`;
+                
+                if (!scores[modeKey] || this.score > scores[modeKey]) {
+                    scores[modeKey] = this.score;
+                    localStorage.setItem('match3HighScores', JSON.stringify(scores));
+                    this.displayHighScores();
+                }
+            }
+            
+            getHighScores() {
+                try {
+                    return JSON.parse(localStorage.getItem('match3HighScores')) || {};
+                } catch {
+                    return {};
+                }
+            }
+            
+            loadHighScores() {
+                this.displayHighScores();
+            }
+            
+            displayHighScores() {
+                const scores = this.getHighScores();
+                const container = document.getElementById('highScores');
+                
+                const modeNames = {
+                    [GAME_MODES.SIMPLE]: 'Простий',
+                    [GAME_MODES.TIMED]: 'На час',
+                    [GAME_MODES.CHALLENGE]: 'Ускладнений'
+                };
+                
+                let html = '';
+                Object.keys(modeNames).forEach(mode => {
+                    const score = scores[`${mode}HighScore`] || 0;
+                    html += `
+                        <div class="high-score-item">
+                            <span>${modeNames[mode]}</span>
+                            <span>${score}</span>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            }
+        }
+        
+        // Ініціалізація гри
+        let game;
+        
+        // Перевіряємо підтримку localStorage
+        function isLocalStorageSupported() {
+            try {
+                const test = 'test';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+        
+        // Якщо localStorage не підтримується, використовуємо заглушки
+        if (!isLocalStorageSupported()) {
+            const mockStorage = {};
+            window.localStorage = {
+                getItem: function(key) {
+                    return mockStorage[key] || null;
+                },
+                setItem: function(key, value) {
+                    mockStorage[key] = value;
+                },
+                removeItem: function(key) {
+                    delete mockStorage[key];
+                }
+            };
+        }
+        
+        // Запускаємо гру після завантаження DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            game = new Match3Game();
+        });
+        
+        // Обробка кліків по тайлах з бонусами
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('bomb')) {
+                const row = parseInt(e.target.dataset.row);
+                const col = parseInt(e.target.dataset.col);
+                game.useBomb(row, col);
+            } else if (e.target.classList.contains('lightning')) {
+                game.useLightning();
+            }
+        });
+        
+        // Адаптивність для мобільних пристроїв
+        function adjustGameSize() {
+            const gameBoard = document.getElementById('gameBoard');
+            const container = document.querySelector('.container');
+            
+            if (window.innerWidth <= 1200) {
+                gameBoard.style.fontSize = '6px';
+            } else {
+                gameBoard.style.fontSize = '8px';
+            }
+        }
+        
+        window.addEventListener('resize', adjustGameSize);
+        document.addEventListener('DOMContentLoaded', adjustGameSize);
+    </script>
+</body>
+</html>
+                
